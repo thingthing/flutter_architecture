@@ -1,10 +1,10 @@
-name: build-ios
-on:
-  push:
-    - main
-
+name: build.ios
+on: [pull_request]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
-  build:ios:
+  build_ios:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
