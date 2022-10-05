@@ -1,0 +1,47 @@
+name: prepare
+on:
+  push:
+    # Sequence of patterns matched against refs/heads
+    branches:
+      - main
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - run: flutter precache
+      - run: flutter pub get
+      - run: flutter analyze --no-pub
+
+  test:
+    needs: analyze
+    strategy:
+      matrix:
+        device:
+          # The available simulators are listed by the "xcrun xctrace list devices" command
+          - "iPhone 12 Simulator (15.2)" # the name of the simulator could be different depending on the macos version you are using
+      # if one of the jobs in the matrix expansion fails, the rest of the jobs will be cancelled
+      fail-fast: true
+    runs-on: macos-latest
+    steps:
+      - name: "List all simulators"
+        run: "xcrun xctrace list devices"
+      - name: "Start Simulator"
+        # the command "xcrun simctl boot" expects a device identifier
+        # the assignment of the UDID variable consists of retrieving the ID of the simulator
+        # by extracting it from the command "xcrun xctrace list devices"
+        run: |
+          UDID=$(xcrun xctrace list devices | grep "^${{ matrix.device }}" | awk '{gsub(/[()]/,""); print $NF}')
+          echo $UDID
+          xcrun simctl boot "${UDID:?No Simulator with this name found}"
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - name: "Run integration tests"
+        run: flutter test integration_test
